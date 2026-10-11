@@ -4,6 +4,13 @@
 
 Artemis is a student drone project combining practical engineering with experiments in control, sensing and autonomy. Our aim is to build a platform the team can understand, maintain and improve, while sharing what we learn through reproducible experiments.
 
+## Project documents
+
+- [Weekly Plan](weekly-plan.md) — roadmap, weekly activities, progress and purchasing follow-up.
+- [Technical Reference](technical-reference.md) — existing hardware, manuals, pin map, wiring checks and test records.
+
+This README is a general introduction. Dated progress and technical updates belong in the two documents above.
+
 ## Current work
 
 As of 10 October 2026, the team has started work and is assessing an existing society hexacopter for reuse with a SpeedyBee F405 V5 flight controller.
@@ -40,3 +47,13 @@ We plan to work together for three hours on Wednesdays across two teaching semes
 Students interested in mechanical design, electronics, embedded systems, radio, software, control, computer vision or testing are welcome. Beginners can contribute through assembly, data collection, configuration, analysis and documentation, then take ownership of a module as their experience grows.
 
 Each member should have a clear contribution, with time for the team to explain results and combine its work. Early tasks will focus on small, useful outputs that help the next person build or test their part of the system.
+
+## Editing the documents
+
+Repository write access is by invitation from the owner. The project limits access to **ten people including the owner**; accepted collaborators and pending invitations share the remaining nine places. Public reading is unrestricted.
+
+After accepting an invitation, create a branch, edit the relevant document and open a pull request to `main`. Browser editing is fine: use the pencil icon on a file, then choose to create a new branch when committing. Keep the change description specific and distinguish plans, reported observations and measured results.
+
+`main` requires at least one approving review and resolved review conversations. New commits that change reviewed content dismiss stale approvals. Force pushes and deletion of `main` are disabled. The owner retains an administrator exception for initial solo maintenance and emergencies; normal team changes follow the review process.
+
+Without write access, readers can suggest a change through a fork and pull request. Opening the repository link does not automatically grant editing access.
