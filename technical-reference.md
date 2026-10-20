@@ -1,6 +1,6 @@
 # Artemis — Technical Reference
 
-Updated: 11 October 2026.
+Updated: 20 October 2026.
 
 This document records existing hardware, identification evidence, manuals, wiring references and bench procedures. Purchase decisions and deliveries belong in the [Weekly Plan](weekly-plan.md). A component being present does not mean that it has passed testing.
 
@@ -78,6 +78,103 @@ The following is the existing manufacturer pin-map reference, reproduced unchang
 ![SpeedyBee F405 V5 manufacturer peripheral pin map](assets/f405-v5-pinout.png)
 
 For our aircraft, a complete wiring record must additionally identify each actual ESC, motor position, signal output, ground connection and direction. Verify signal routing through the old PDB before treating it as a transparent extension of a flight-controller output.
+
+## Betaflight six-motor configuration (proposed)
+
+Added 20 October 2026. This section is a **desk proposal** for running the hexacopter on Betaflight. It was derived from the Betaflight source for release 2026.6.2 and the official `SPEEDYBEEF405V5` board definition. **None of it has been tested on our board.** Back up with `diff all` before applying any command, and remove all propellers for every motor test.
+
+### Why S5/S6 need extra work
+
+The board definition assigns M1–M4 as motor outputs with DMA already allocated. S5 and S6 are defined as **servo outputs with no DMA**, so they cannot send DShot until they are reassigned. Electrically they are ordinary 3.3 V MCU outputs like M1–M4; once configured, Betaflight treats motors 5 and 6 the same as motors 1–4.
+
+| Output | MCU pin | Timer | DMA in board definition | DMA options (Betaflight index) |
+| --- | --- | --- | --- | --- |
+| M1 | PB1 | TIM3 CH4 | Assigned (DMA1) | — |
+| M2 | PB0 | TIM3 CH3 | Assigned (DMA1) | — |
+| M3 | PB10 | TIM2 CH3 | Assigned (DMA1) | — |
+| M4 | PB11 | TIM2 CH4 | Assigned (DMA1) | — |
+| S5 | PC9 | TIM8 CH4 | **None** | 0 = DMA2 Stream 7 (only option) |
+| S6 | PC8 | TIM8 CH3 | **None** | 0 = DMA2 Stream 2; 1 = DMA2 Stream 4 |
+
+Notes:
+
+- The board definition places ADC1 on **DMA2 Stream 4**, so S6 should use option 0. Option 1 would collide with the ADC.
+- PC8/PC9 can also map to TIM3, but TIM3 already drives M1/M2. Keep S5/S6 on TIM8, which is the board default.
+- Other peripherals that can use DMA2 Streams 2 or 7: gyro SPI1 receive, UART1 transmit/receive and UART6 transmit/receive. Check the actual allocation with `dma show`.
+- S5 = PC9 and S6 = PC8 follow from the board definition's SERVO1/SERVO2 order. Confirm against `resource show` and the pin map above before wiring.
+
+### Proposed CLI commands
+
+```
+resource SERVO 1 NONE
+resource SERVO 2 NONE
+resource MOTOR 5 C09
+resource MOTOR 6 C08
+dma pin C09 0
+dma pin C08 0
+mixer HEX6X
+save
+```
+
+After the reboot, run `resource show`, `timer show`, `dma show` and `status`. Expected: MOTOR 5 = C09 and MOTOR 6 = C08 on TIM8; DMA2 Stream 7 → MOTOR 5, DMA2 Stream 2 → MOTOR 6, DMA2 Stream 4 → ADC; no shared streams; no errors in `status`.
+
+### HEX6X motor positions and directions
+
+From the Betaflight `mixerHex6X` table. The front of the aircraft lies **between two arms**; directions are viewed from above with `yaw_motors_reversed = OFF`.
+
+| Betaflight motor | Position | Default direction | Output if wired directly |
+| --- | --- | --- | --- |
+| 1 | Rear right | Counter-clockwise | M1 |
+| 2 | Front right | Counter-clockwise | M2 |
+| 3 | Rear left | Clockwise | M3 |
+| 4 | Front left | Clockwise | M4 |
+| 5 | Right (middle) | Clockwise | S5 |
+| 6 | Left (middle) | Counter-clockwise | S6 |
+
+Directions alternate around the frame. If the propellers are mounted the opposite way, set `yaw_motors_reversed = ON` and reverse **all six**, never a subset.
+
+Three ways to match outputs to positions. Use only one, so the final mapping stays traceable:
+
+1. Wire each ESC signal to the output in the table. No further remapping is needed.
+2. Keep the existing wiring and use the Configurator **Motors → Reorder motors** tool. It stores the result in `motor_output_reordering`, which `diff all` captures.
+3. Swap pins with `resource MOTOR n <pin>` (free both pins with `NONE` first). The DMA setting follows the pin; re-check `dma show` afterwards.
+
+Correct reversed motors in BLHeli_32 Suite, or with the Configurator motor-direction tool if available, rather than swapping motor phase wires by trial.
+
+### If S5/S6 still do not work
+
+Work through these in order and record each result:
+
+1. **Hardware:** confirm the wire is on the S5/S6 pad, check continuity through the PDB, confirm a common signal ground, and look for a DShot waveform at the pad. Move the motor 5 ESC to M1 to check whether the fault follows the ESC/motor or the output.
+2. **DMA conflict:** if a UART transmit holds DMA2 Stream 7, release it with `dma UART_TX 1 NONE` or `dma UART_TX 6 NONE`. If DMA2 Stream 2 is taken, move the other user (for example `dma SPI_SDI 1 0`), or use `dma pin C08 1` together with `dma ADC 1 0`. Re-check `dma show` after every change, because moving one peripheral can create a new collision.
+3. **Bitbang DShot:** `dma pin C09 NONE`, `dma pin C08 NONE`, `set dshot_bitbang = ON`, `save`. This does not depend on per-pin DMA and also supports bidirectional DShot.
+4. **Other pads:** for example the LED strip pad PA8 (TIM1 CH1, has DMA): `resource LED_STRIP 1 NONE`, then `resource MOTOR 5 A08`. Check `timer show` and `dma show`.
+5. **Fallback protocol:** DShot300, or an analogue protocol such as Oneshot125 (no DMA needed, but no bidirectional DShot or RPM filter; analogue protocols need ESC range calibration with propellers removed).
+6. **Platform change:** ArduPilot, or a flight controller with native 6–8 motor outputs. ArduPilot support for this exact board has not been checked.
+
+Enable bidirectional DShot (`set dshot_bidir = ON`) only after all six motors run on plain DShot, then re-check `dma show` and the RPM readout.
+
+### Other changes for a large hexacopter
+
+- **ESCs:** match firmware and settings across all six. Set `motor_poles` to the counted magnet number (22 is common for 4006 motors, but count ours). Bidirectional DShot needs BLHeli_32 32.7 or later.
+- **Tuning:** Betaflight defaults suit 5-inch quadcopters. Start with much lower P and D, low rates and Angle mode. Lower `dyn_notch_min_hz` and `rpm_filter_min_hz` only after inspecting a Blackbox noise spectrum. Raise `dshot_idle_value` only if motors do not run smoothly at idle. A Blackbox rate of 1–2 kHz is sufficient.
+- **Power and safety:** calibrate the voltage reading. Set the current meter to none if no sensor is wired. Test failsafe with propellers removed by switching off the transmitter.
+- **Firmware:** Betaflight 2025.12 and later add Altitude Hold and GPS Position Hold, but these need a GPS (and preferably a magnetometer), which we do not own.
+
+### Open issues
+
+| Issue | Status | Next action |
+| --- | --- | --- |
+| Motors 5/6 unassigned in the current Betaflight 4.5.2 setup | Recorded fact | Apply and verify the proposed commands above |
+| S5/S6 DShot output | **Untested**; DMA collision possible | Check `dma show`, then the fallback list |
+| Mapping of the six ESCs/arms to outputs | Not recorded | Number the arms, trace each signal through the PDB, choose one mapping method |
+| Motor directions and propeller orientation | Not recorded | Compare each motor with the HEX6X table, props removed |
+| ESC firmware version and settings on all six units | Not read | Read through BLHeli_32 passthrough; record version and `motor_poles` |
+| Common signal ground for every ESC | Not verified | Continuity check from each ESC signal ground to FC ground |
+| Radio link | No receiver owned | Configure CRSF on UART6 after the receiver arrives |
+| Tuning for the 680-class frame | Not started | First hover in Angle mode with conservative PIDs; log Blackbox |
+
+Sources: [Betaflight `SPEEDYBEEF405V5` board definition](https://github.com/betaflight/config/blob/master/configs/SPBE/SPEEDYBEEF405V5/config.h), [Betaflight 2026.6.2 STM32 DMA map](https://github.com/betaflight/betaflight/blob/2026.6.2/src/platform/STM32/dma_reqmap_mcu.c), [Betaflight 2026.6.2 STM32F4 timer table](https://github.com/betaflight/betaflight/blob/2026.6.2/src/platform/STM32/timer_stm32f4xx.c), [Betaflight 2026.6.2 mixer tables](https://github.com/betaflight/betaflight/blob/2026.6.2/src/main/flight/mixer_init.c), [Betaflight 2025.12 release notes](https://betaflight.com/docs/wiki/release/Betaflight-2025-12-Release-Notes).
 
 ## Bench procedures
 

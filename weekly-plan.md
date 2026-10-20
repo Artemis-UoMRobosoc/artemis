@@ -2,7 +2,7 @@
 
 **University of Manchester Robotics Society · 2026–27**
 
-**Updated: 11 October 2026**
+**Updated: 20 October 2026**
 
 Artemis aims to build and improve a drone that the team can understand, maintain and use for control experiments. Control development provides the starting point, with routes into visual navigation and learning-based control as the platform and interfaces mature.
 
@@ -109,6 +109,7 @@ Procedures and hardware references belong in the [technical reference](technical
 - **10 October:** the leader confirmed control of motor speed. The motor/ESC/channel, wiring, firmware/protocol, supply and command range still need recording. Six-channel operation, repeatable stopping and flight remain unconfirmed.
 - **10 October:** a battery was reported dispatched. Receipt and suitability for this aircraft remain unconfirmed.
 - **10–11 October:** ESP32 internal-radio/ExpressLRS research was separated from aircraft recovery. An owned **CrowPanel ESP32-S3** and **Nooelec NESDR SMArt v5** can support experimental work, including a separate 868 MHz recording experiment. No ELRS transmitter, module or receiver is owned. These research plans do not replace a proven aircraft control link; hardware trials have not been completed.
+- **20 October:** added a desk proposal for the Betaflight six-motor setup to the [technical reference](technical-reference.md#betaflight-six-motor-configuration-proposed): S5/S6 resource and DMA commands, the HEX6X motor map, a fallback list if S5/S6 do not output DShot, and a table of open issues. It is derived from Betaflight source and has **not been tested** on the board.
 
 ## Purchasing follow-up — 11 October 2026
 
