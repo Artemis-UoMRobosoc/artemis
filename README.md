@@ -8,8 +8,9 @@ Artemis is a student drone project combining practical engineering with experime
 
 - [Weekly Plan](weekly-plan.md) — roadmap, weekly activities, progress and purchasing follow-up.
 - [Technical Reference](technical-reference.md) — existing hardware, manuals, pin map, wiring checks and test records.
+- [Tarot 680 Simulator](simulator/README.md) — setup, RC input, controls, recording and simulation limits.
 
-This README is a general introduction. Dated progress and technical updates belong in the two documents above.
+This README is a general introduction. Dated progress and technical updates belong in the Weekly Plan and Technical Reference; simulator setup and operation are documented in the simulator guide.
 
 ## Current work
 
